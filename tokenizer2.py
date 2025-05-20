@@ -50,11 +50,19 @@ class Tokenizer1(BaseTokenizer):
         return newids
 
     def encode(self, text: str) -> List[int]:
-        tokens = text.encode("utf-8")  # raw bytes
-        for pair in zip(text, text[1:] if self.scores):
-
-
-        tokens = list(map(int, tokens))  # convert to a list of integers in range 0..255 for convenience
+        tokens = text.encode('utf-8')
+        while True:
+            max_pair = None
+            max_score = 0
+            for pair in zip(tokens, tokens[1:]):
+                if pair in self.scores:
+                    if self.scores[pair] > max_score:
+                        max_score = self.scores[pair]
+                        max_pair = pair
+            if max_pair is None:
+                break
+            new_token = self.merges[max_pair]
+            tokens = self.merge(tokens, max_pair, new_token)
         return tokens
 
     def decode(self, token_ids: List[int]) -> str:
