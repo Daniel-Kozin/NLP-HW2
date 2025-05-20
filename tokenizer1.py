@@ -38,23 +38,20 @@ class Tokenizer1(BaseTokenizer):
 
 	def get_highest_count(self, ids, changed, new_token, pair):
 		if changed is not None:
+			self.global_count[pair] = 0
 			for i, sentence in enumerate(ids):
 				if not changed[i]:
 					continue
 
-				# we merged the last pair
-				self.global_count.update(zip(sentence, sentence[1:]))
-
-				# remove the sentence score before the merge
-				sentence_before = []
-				for char in sentence:
-					if char == new_token:
-						sentence_before.append(pair[0])
-						sentence_before.append(pair[1])
-					else:
-						sentence_before.append(char)
-
-				self.global_count.subtract(zip(sentence_before, sentence_before[1:]))
+				for prev, curr in zip(sentence, sentence[1:]):
+					if prev == new_token or curr == new_token:
+						self.global_count[(prev, curr)] += 1
+						if prev == new_token and curr == new_token:
+							continue
+						elif prev == new_token:
+							self.global_count[(pair[1], curr)] -= 1
+						else:
+							self.global_count[(prev, pair[0])] -= 1
 
 			best_pair, freq = self.global_count.most_common(1)[0]
 			return best_pair, freq
