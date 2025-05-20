@@ -51,7 +51,7 @@ You're free to experiment with different BPE variations and optimizations.
 Train your tokenizer using the provided script:
 
 ```bash
-python train_tokenizer.py --domain_file data/domain_1.txt --output_dir tokenizers --vocab_size 5000
+python train_tokenizer.py --domain_file data/domain_1_train.txt --output_dir tokenizers --vocab_size 5000
 ```
 
 This will save your trained tokenizer to the specified output directory.

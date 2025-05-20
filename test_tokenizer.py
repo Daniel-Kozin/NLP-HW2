@@ -5,10 +5,10 @@ from typing import List, Type
 import sys
 import pickle
 
-from base_tokenizer import BaseTokenizer
+from tokenizer1 import Tokenizer1
 
 
-def measure_encoding_speed(tokenizer: BaseTokenizer, texts: List[str], repeats: int = 5) -> float:
+def measure_encoding_speed(tokenizer: Tokenizer1, texts: List[str], repeats: int = 5) -> float:
     """
     Measure tokenizer encoding speed in tokens per second
     Also returns total time and total tokens for the test set (no repeats)
@@ -43,7 +43,7 @@ def measure_encoding_speed(tokenizer: BaseTokenizer, texts: List[str], repeats: 
     return tokens_per_second, single_pass_time, single_pass_tokens
 
 
-def calculate_efficiency(tokenizer: BaseTokenizer, train_texts: List[str], test_texts: List[str]) -> float:
+def calculate_efficiency(tokenizer: Tokenizer1, train_texts: List[str], test_texts: List[str]) -> float:
     """
     Calculate tokenizer efficiency (tokens per character) on test texts
     
@@ -66,7 +66,7 @@ def calculate_efficiency(tokenizer: BaseTokenizer, train_texts: List[str], test_
     return total_tokens / total_chars if total_chars > 0 else 0
 
 
-def test_reconstruction(tokenizer: BaseTokenizer, texts: List[str], sample_size: int = 10) -> float:
+def test_reconstruction(tokenizer: Tokenizer1, texts: List[str], sample_size: int = 10) -> float:
     """
     Test if tokenizer can correctly encode and decode texts
     
