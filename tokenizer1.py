@@ -62,7 +62,6 @@ class Tokenizer1(BaseTokenizer):
 			best_pair, freq = self.global_count.most_common(1)[0]
 			return best_pair, freq
 
-
 	def merge(self, ids, pair, idx):
 		new_ids = []
 		sen_changed = []
