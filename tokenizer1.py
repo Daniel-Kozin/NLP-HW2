@@ -1,5 +1,5 @@
 from typing import List
-
+from collections import Counter
 from base_tokenizer import BaseTokenizer
 
 
@@ -11,18 +11,22 @@ class Tokenizer1(BaseTokenizer):
 		self.vocab_size = vocab_size
 		self.vocab = {idx: bytes([idx]) for idx in range(256)}
 		self.scores = {}
+		self.global_count = Counter()
 
 	def train(self, texts: List[str]) -> None:
 		num_merges = self.vocab_size - 256
 		tokens = self.encode_batch(texts)  # List[List[int]]
 		ids = list(tokens)  # copy so we don't destroy the original list
+		changed = None
+		pair = None
 
 		for i in range(num_merges):
-			if i % 100 == 0:
+			if i % 50 == 0:
 				print(f"Iteration {i}")
+				self.global_count = Counter({k: v for k, v in self.global_count.items() if v > 0})
 
 			idx = 256 + i
-			pair, count_pair = self.get_highest_count(ids)  # Find the best pair
+			pair, count_pair = self.get_highest_count(ids, changed, idx - 1, pair)  # Find the best pair
 			self.scores[pair] = count_pair  # Remember that pair score
 			# Add this pair to the vocab in his original form
 			self.vocab[idx] = self.vocab[pair[0]] + self.vocab[pair[1]]
@@ -30,33 +34,57 @@ class Tokenizer1(BaseTokenizer):
 
 			print(f"merging {pair} into a new token {idx}")
 			# Merge the new pair into the text
-			ids = self.merge(ids, pair, idx)
+			ids, changed = self.merge(ids, pair, idx)
 
-	def get_highest_count(self, ids):
-		count = {}
-		for sentence in ids:
-			for pair in zip(sentence, sentence[1:]):
-				count[pair] = count.get(pair, 0) + 1
+	def get_highest_count(self, ids, changed, new_token, pair):
+		if changed is not None:
+			for i, sentence in enumerate(ids):
+				if not changed[i]:
+					continue
 
-		best_pair = max(count, key=count.get)
-		return best_pair, count[best_pair]
+				# we merged the last pair
+				self.global_count.update(zip(sentence, sentence[1:]))
+
+				# remove the sentence score before the merge
+				sentence_before = []
+				for char in sentence:
+					if char == new_token:
+						sentence_before.append(pair[0])
+						sentence_before.append(pair[1])
+					else:
+						sentence_before.append(char)
+
+				self.global_count.subtract(zip(sentence_before, sentence_before[1:]))
+
+			best_pair, freq = self.global_count.most_common(1)[0]
+			return best_pair, freq
+
+		else:
+			for sentence in ids:
+				self.global_count.update(zip(sentence, sentence[1:]))
+			best_pair, freq = self.global_count.most_common(1)[0]
+			return best_pair, freq
+
 
 	def merge(self, ids, pair, idx):
 		new_ids = []
+		sen_changed = []
 		for sentence in ids:
+			changed = False
 			new_sentence = []
 			i = 0
 			while i < len(sentence):
 				# If we find the pair to merge
 				if i < len(sentence) - 1 and sentence[i] == pair[0] and sentence[i + 1] == pair[1]:
+					changed = True
 					new_sentence.append(idx)
 					i += 2  # skip the next token as it's part of the merged pair
-
 				else:
 					new_sentence.append(sentence[i])
 					i += 1
 			new_ids.append(new_sentence)
-		return new_ids
+			sen_changed.append(changed)
+		return new_ids, sen_changed
 
 	def encode(self, text: str) -> List[int]:
 		tokens = text.encode('utf-8')
@@ -74,7 +102,6 @@ class Tokenizer1(BaseTokenizer):
 			new_token = self.merges[max_pair]
 			tokens = self.merge(tokens, max_pair, new_token)
 		return tokens
-
 
 	def decode(self, token_ids: List[int]) -> str:
 		tokens = b"".join(self.vocab[idx] for idx in token_ids)
