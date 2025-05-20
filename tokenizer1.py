@@ -7,8 +7,7 @@ class Tokenizer1(BaseTokenizer):
 
 	def __init__(self, vocab_size):
 		super(Tokenizer1, self).__init__()
-		self.vocab = None
-		self.merges = None
+		self.merges = {}
 		self.vocab_size = vocab_size
 		self.vocab = {idx: bytes([idx]) for idx in range(256)}
 		self.scores = {}
@@ -18,7 +17,6 @@ class Tokenizer1(BaseTokenizer):
 		tokens = self.encode_batch(texts)  # List[List[int]]
 		ids = list(tokens)  # copy so we don't destroy the original list
 
-		self.merges = {}
 		for i in range(num_merges):
 			if i % 100 == 0:
 				print(f"Iteration {i}")
@@ -45,7 +43,6 @@ class Tokenizer1(BaseTokenizer):
 
 	def merge(self, ids, pair, idx):
 		new_ids = []
-
 		for sentence in ids:
 			new_sentence = []
 			i = 0
@@ -54,6 +51,7 @@ class Tokenizer1(BaseTokenizer):
 				if i < len(sentence) - 1 and sentence[i] == pair[0] and sentence[i + 1] == pair[1]:
 					new_sentence.append(idx)
 					i += 2  # skip the next token as it's part of the merged pair
+
 				else:
 					new_sentence.append(sentence[i])
 					i += 1
