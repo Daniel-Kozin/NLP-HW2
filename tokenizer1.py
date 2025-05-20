@@ -33,7 +33,7 @@ class Tokenizer1(BaseTokenizer):
 	def get_stats(self, ids):
 		counts = {}
 		for pair in zip(ids, ids[1:]):
-			counts[pair] = counts.get(pair, 0) + 1
+			counts[pair] = counts.get(pair, 0) + 1 #a
 		return counts
 
 	def merge(self, ids, pair, idx):
