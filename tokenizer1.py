@@ -81,7 +81,7 @@ class Tokenizer1(BaseTokenizer):
 			return best_pair, freq
 
 
-	def merge(self, sentence, pair, idx, sen_idx):
+	def merge(self, sentence, pair, idx, sen_idx=-1):
 		changed = False
 		new_sentence = []
 		i = 0
@@ -89,7 +89,8 @@ class Tokenizer1(BaseTokenizer):
 			# If we find the pair to merge
 			if i < len(sentence) - 1 and sentence[i] == pair[0] and sentence[i + 1] == pair[1]:
 				changed = True
-				self.vocab_to_sen[idx].add(sen_idx)
+				if sen_idx != -1:
+					self.vocab_to_sen[idx].add(sen_idx)
 				new_sentence.append(idx)
 				i += 2  # skip the next token as it's part of the merged pair
 			else:
@@ -111,7 +112,7 @@ class Tokenizer1(BaseTokenizer):
 			if max_pair is None:
 				break
 			new_token = self.merges[max_pair]
-			tokens = self.merge(tokens, max_pair, new_token)
+			tokens, _ = self.merge(tokens, max_pair, new_token)
 		return tokens
 
 	def decode(self, token_ids: List[int]) -> str:
