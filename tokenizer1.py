@@ -104,11 +104,10 @@ class Tokenizer1(BaseTokenizer):
 		while True:
 			max_pair = None
 			max_score = 0
-			for pair in zip(tokens, tokens[1:]):
-				if pair in self.scores:
-					if self.scores[pair] > max_score:
-						max_score = self.scores[pair]
-						max_pair = pair
+			for pair in self.scores.keys():
+				if self.scores[pair] > max_score:
+					max_score = self.scores[pair]
+					max_pair = pair
 			if max_pair is None:
 				break
 			new_token = self.merges[max_pair]
