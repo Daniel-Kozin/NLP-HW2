@@ -16,6 +16,7 @@ class Tokenizer1(BaseTokenizer):
 		self.scores = {}
 		self.global_count = Counter()
 		self.vocab_to_sen = {}
+		self.pair_in_vocab = set()
 
 	def train(self, texts: List[str]) -> None:
 		num_merges = self.vocab_size - 256
@@ -52,6 +53,8 @@ class Tokenizer1(BaseTokenizer):
 				new_sen, changed = self.merge(ids[j], pair, idx, j)
 				sen_changed[j] = changed
 				ids[j] = new_sen
+		for pair in self.scores.keys():
+			self.pair_in_vocab.add(pair)
 
 
 	def get_highest_count(self, ids, changed, new_token, pair):
@@ -104,7 +107,9 @@ class Tokenizer1(BaseTokenizer):
 		while True:
 			max_pair = None
 			max_score = 0
-			for pair in self.scores.keys():
+			for pair in zip(tokens, tokens[1:]):
+				if pair not in self.pair_in_vocab:
+					continue
 				if self.scores[pair] > max_score:
 					max_score = self.scores[pair]
 					max_pair = pair
