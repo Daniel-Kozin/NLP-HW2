@@ -55,7 +55,8 @@ class Tokenizer1(BaseTokenizer):
 			self.token_to_id[pair[0] + pair[1]] = idx
 			self.vocab_to_sen[idx] = set()
 
-			print(f"merging {pair} into a new token {idx}")
+			print(f"merging {pair} ({self.vocab[pair[0]]}, {self.vocab[pair[1]]})"
+				  f" into a new token {idx} ({self.vocab[idx]})")
 
 			# get all the sentences were pair[0] and pair[1] apeared
 			sen_to_merge = self.vocab_to_sen[pair[0]].intersection(self.vocab_to_sen[pair[1]])
@@ -143,4 +144,3 @@ class Tokenizer1(BaseTokenizer):
 			The number of tokens in the vocabulary
 		"""
 		return self.vocab_size
-
