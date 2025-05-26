@@ -244,7 +244,7 @@ def read_ner_data(file_path: str) -> Tuple[List[str], List[List[int]]]:
             if len(parts) == 2:
                 token, tag = parts
                 # Convert tag to binary (1 if entity, 0 if not)
-                label = 1 if tag != 'O' else 0
+                label = 1 if tag != '0' else 0
                 current_text.append(token)
                 current_labels.append(label)
 
