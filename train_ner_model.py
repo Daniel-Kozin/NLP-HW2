@@ -392,9 +392,11 @@ def train_ner_model(
         for batch in train_dataloader:
             input_ids = batch['input_ids'].to(device)
             labels = batch['labels'].to(device)
-
             # Zero the gradients
             optimizer.zero_grad()
+            print(f"Tokenizer vocab size: {tokenizer.get_vocab_size()}")
+            print("Max input id:", input_ids.max().item())
+            print("Min input id:", input_ids.min().item())
 
             # Forward pass
             logits = model(input_ids)

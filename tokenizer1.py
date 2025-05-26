@@ -1,8 +1,6 @@
 from typing import List
 from collections import Counter
-
 import numpy as np
-
 from base_tokenizer import BaseTokenizer
 
 
@@ -136,3 +134,13 @@ class Tokenizer1(BaseTokenizer):
 		tokens = b"".join(self.vocab[idx] for idx in token_ids)
 		text = tokens.decode("utf-8", errors="replace")
 		return text
+
+	def get_vocab_size(self) -> int:
+		"""
+		Get the size of the vocabulary
+
+		Returns:
+			The number of tokens in the vocabulary
+		"""
+		return self.vocab_size
+
