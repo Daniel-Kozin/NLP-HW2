@@ -12,23 +12,25 @@ class Tokenizer1(BaseTokenizer):
 		self.vocab_size = vocab_size
 
 		# idx -> pair
-		self.vocab = {idx: bytes([idx]) for idx in range(256)}
+		# adds to the 4 special tokens that already exist
+		self.id_to_token.update({idx: bytes([idx - 4]) for idx in range(4, 260)})
 		# token -> idx
-		self.token_to_id = {bytes([idx]): idx for idx in range(256)}
+		# adds to the 4 special tokens that already exist
+		self.token_to_id.update({bytes([idx - 4]): idx for idx in range(4, 260)})
 		# pair -> amount of appearances
 		self.scores = {}
 		self.global_count = Counter()
 
 		# for each token holds the idx of sentences that the word is in them
 		self.vocab_to_sen = {}
-		for i in range(256):
+		for i in range(260):
 			self.vocab_to_sen[i] = set()
 
 		# holds all the tokens we merged
 		self.pair_in_vocab = set()
 
 	def train(self, texts: List[str]) -> None:
-		num_merges = self.vocab_size - 256
+		num_merges = self.vocab_size - 260
 		tokens = self.encode_batch(texts)  # List[List[int]]
 		ids = list(tokens)  # copy so we don't destroy the original list
 
@@ -43,20 +45,20 @@ class Tokenizer1(BaseTokenizer):
 			if i % 50 == 0:
 				self.global_count = Counter({k: v for k, v in self.global_count.items() if v > 0})
 
-			idx = 256 + i
+			idx = 260 + i
 			# Find the best pair
 			pair, count_pair = self.get_highest_count(ids, sen_changed, idx - 1, pair)
 			# Remember that pair score
 			self.scores[pair] = count_pair
 
 			# Add this pair to the vocab in his original form
-			self.vocab[idx] = self.vocab[pair[0]] + self.vocab[pair[1]]
+			self.id_to_token[idx] = self.id_to_token[pair[0]] + self.id_to_token[pair[1]]
 			self.merges[pair] = idx
 			self.token_to_id[pair[0] + pair[1]] = idx
 			self.vocab_to_sen[idx] = set()
 
-			print(f"merging {pair} ({self.vocab[pair[0]]}, {self.vocab[pair[1]]})"
-				  f" into a new token {idx} ({self.vocab[idx]})")
+			print(f"merging {pair} ({self.id_to_token[pair[0]]}, {self.id_to_token[pair[1]]})"
+				  f" into a new token {idx} ({self.id_to_token[idx]})")
 
 			# get all the sentences were pair[0] and pair[1] apeared
 			sen_to_merge = self.vocab_to_sen[pair[0]].intersection(self.vocab_to_sen[pair[1]])
@@ -113,6 +115,7 @@ class Tokenizer1(BaseTokenizer):
 				i += 1
 		return new_sentence, changed
 
+
 	def encode(self, text: str) -> List[int]:
 		tokens = text.encode('utf-8')
 		tokens = list(map(int, tokens))
@@ -132,7 +135,7 @@ class Tokenizer1(BaseTokenizer):
 		return tokens
 
 	def decode(self, token_ids: List[int]) -> str:
-		tokens = b"".join(self.vocab[idx] for idx in token_ids)
+		tokens = b"".join(self.id_to_token[idx] for idx in token_ids)
 		text = tokens.decode("utf-8", errors="replace")
 		return text
 
