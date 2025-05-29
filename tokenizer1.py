@@ -9,7 +9,7 @@ class Tokenizer1(BaseTokenizer):
 
 	def __init__(self, vocab_size):
 		super(Tokenizer1, self).__init__()
-
+		self.space_token = ' '
 		self.merges = {}
 		self.vocab_size = vocab_size
 

@@ -7,122 +7,192 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from base_tokenizer import BaseTokenizer
+from tqdm import tqdm
+import regex as re
 
 
 # Dataset class for NER data
 class NERDataset(Dataset):
-    def __init__(self, texts: List[str], labels: List[List[int]], tokenizer: BaseTokenizer):
+    def __init__(self, texts: List[str], labels: List[List[int]], tokenizer):
         self.tokenizer = tokenizer
         self.encoded_texts = []
         self.encoded_labels = []
-        self.word_to_subtoken = []  # For each sentence: maps word_idx -> first subtoken_idx for that word
-        self.subtoken_to_word = []  # For each sentence: maps subtoken_idx -> primary word_idx it represents
+        self.word_to_subtoken = []
+        self.subtoken_to_word = []
 
         # Check if tokenizer has a space token
         self.space_token_id = None
         if hasattr(tokenizer, 'space_token') and tokenizer.space_token in tokenizer.token_to_id:
             self.space_token_id = tokenizer.token_to_id[tokenizer.space_token]
 
-        for text, text_labels in zip(texts, labels):
-            # Get the words and their positions in the original text
-            words = text.split()
-            if not words:
-                continue
+        # Process all texts with optimized alignment
+        for text, text_labels in tqdm(zip(texts, labels), desc="Processing texts"):
+            result = self._process_text_optimized(text, text_labels)
+            if result:
+                self.encoded_texts.append(result['token_ids'])
+                self.encoded_labels.append(result['token_labels'])
+                self.word_to_subtoken.append(result['word_to_sub'])
+                self.subtoken_to_word.append(result['sub_to_word'])
 
-            word_spans = []  # (start_char, end_char) for each word
-            char_pos = 0
-            for word in words:
-                # Find the word in the text, starting from char_pos
-                word_start = text.find(word, char_pos)
-                if word_start == -1:  # Word not found, use approximation
-                    word_start = char_pos
+    def _process_text_optimized(self, text: str, text_labels: List[int]) -> Dict:
+        """Optimized version of text processing"""
+        words = text.split()
+        if not words:
+            return None
+
+        # Fast word span calculation using regex
+        word_spans = self._get_word_spans_fast(text, words)
+
+        # Encode text once
+        token_ids = self.tokenizer.encode(text)
+
+        # Fast token-to-character alignment
+        token_char_spans = self._get_token_char_spans_fast(token_ids, text)
+
+        # Fast alignment between tokens and words
+        sub_to_word, word_to_sub = self._align_tokens_to_words_fast(
+            token_char_spans, word_spans, len(words)
+        )
+
+        # Create token labels
+        token_labels = self._create_token_labels(
+            token_ids, word_to_sub, text_labels, sub_to_word
+        )
+
+        return {
+            'token_ids': token_ids,
+            'token_labels': token_labels,
+            'word_to_sub': word_to_sub,
+            'sub_to_word': sub_to_word
+        }
+
+    def _get_word_spans_fast(self, text: str, words: List[str]) -> List[Tuple[int, int]]:
+        """Fast word span calculation using regex"""
+        word_spans = []
+        start = 0
+
+        for word in words:
+            # Find the word starting from the current position
+            escaped_word = re.escape(word)
+            match = re.search(escaped_word, text[start:])
+
+            if match:
+                word_start = start + match.start()
                 word_end = word_start + len(word)
                 word_spans.append((word_start, word_end))
-                char_pos = word_end + 1  # +1 to skip space
-
-            # Encode the full text (allowing tokens to cross word boundaries)
-            token_ids = tokenizer.encode(text)
-
-            # Skip space tokens when tracking word boundaries (they're not part of any word)
-            if self.space_token_id is not None:
-                # Create a mapping from token position including spaces to position excluding spaces
-                non_space_mapping = []
-                cleaned_token_ids = []
-                for i, token_id in enumerate(token_ids):
-                    if token_id != self.space_token_id:
-                        non_space_mapping.append(len(cleaned_token_ids))
-                        cleaned_token_ids.append(token_id)
-                    else:
-                        non_space_mapping.append(-1)  # Skip space tokens
+                start = word_end
             else:
-                # If no space token, use all tokens
-                cleaned_token_ids = token_ids
-                non_space_mapping = list(range(len(token_ids)))
+                # Fallback: approximate position
+                word_start = start
+                word_end = start + len(word)
+                word_spans.append((word_start, word_end))
+                start = word_end + 1  # +1 for space
 
-            # Get the decoded representation of each non-space subtoken
-            subtokens = [tokenizer.decode([token_id]) for token_id in cleaned_token_ids]
+        return word_spans
 
-            # Map each subtoken to the word(s) it covers
-            word_to_sub = []  # word_idx -> first subtoken that primarily covers it
-            sub_to_word = [-1] * len(token_ids)  # subtoken_idx -> primary word it represents (-1 if none)
+    def _get_token_char_spans_fast(self, token_ids: List[int], text: str) -> List[Tuple[int, int]]:
+        """Fast token character span calculation"""
+        if not token_ids:
+            return []
 
-            # Simulate character positions based on concatenating subtokens
-            # This is approximate but helps demonstrate the concept
-            subtoken_start_chars = []
-            char_pos = 0
-            for subtoken in subtokens:
-                subtoken_start_chars.append(char_pos)
-                char_pos += len(subtoken)
+        # Strategy 1: Use tokenizer's built-in alignment if available
+        if hasattr(self.tokenizer, 'encode_with_offsets'):
+            try:
+                _, offsets = self.tokenizer.encode_with_offsets(text)
+                return offsets
+            except:
+                pass
 
-            # For each word, find the first subtoken that overlaps with it
+        # Strategy 2: Batch decode approach (much faster than incremental)
+        token_char_spans = []
+        decoded_so_far = ""
+
+        for i, token_id in enumerate(token_ids):
+            # Decode current token individually
+            current_token_str = self.tokenizer.decode([token_id])
+
+            # Find where this token should start in the original text
+            expected_start = len(decoded_so_far)
+
+            # Update decoded_so_far
+            decoded_so_far = self.tokenizer.decode(token_ids[:i + 1])
+
+            # Calculate span
+            token_start = expected_start
+            token_end = len(decoded_so_far)
+
+            # Clamp to text bounds
+            token_start = max(0, min(token_start, len(text)))
+            token_end = max(token_start, min(token_end, len(text)))
+
+            token_char_spans.append((token_start, token_end))
+
+        return token_char_spans
+
+    def _align_tokens_to_words_fast(self, token_char_spans: List[Tuple[int, int]],
+                                    word_spans: List[Tuple[int, int]],
+                                    num_words: int) -> Tuple[List[int], List[int]]:
+        """Fast alignment using vectorized operations"""
+        num_tokens = len(token_char_spans)
+
+        # Initialize mappings
+        sub_to_word = [-1] * num_tokens
+        word_to_sub = [-1] * num_words
+
+        # Create overlap matrix (optimized)
+        for token_idx, (token_start, token_end) in enumerate(token_char_spans):
+            best_word_idx = -1
+            max_overlap = 0
+
             for word_idx, (word_start, word_end) in enumerate(word_spans):
-                # Find first non-space subtoken that overlaps this word
-                first_subtoken = -1
-                for cleaned_sub_idx, sub_start in enumerate(subtoken_start_chars):
-                    sub_end = sub_start + len(subtokens[cleaned_sub_idx])
+                # Quick overlap calculation
+                overlap = max(0, min(token_end, word_end) - max(token_start, word_start))
 
-                    # Check if this subtoken overlaps with the word
-                    if max(sub_start, word_start) < min(sub_end, word_end):
-                        # Subtoken overlaps with this word
-                        if first_subtoken == -1:
-                            # Map back to original token_ids index (including spaces)
-                            for orig_idx, mapped_idx in enumerate(non_space_mapping):
-                                if mapped_idx == cleaned_sub_idx:
-                                    first_subtoken = orig_idx
-                                    break
-                            # Mark this subtoken as representing this word primarily
-                            sub_to_word[first_subtoken] = word_idx
+                if overlap > max_overlap:
+                    max_overlap = overlap
+                    best_word_idx = word_idx
 
-                if first_subtoken != -1:
-                    word_to_sub.append(first_subtoken)
-                else:
-                    # Fallback - use a subtoken close to the word's position
-                    closest_cleaned_idx = min(range(len(subtoken_start_chars)),
-                                      key=lambda i: abs(subtoken_start_chars[i] - word_start))
-                    # Map back to original token_ids index
-                    for orig_idx, mapped_idx in enumerate(non_space_mapping):
-                        if mapped_idx == closest_cleaned_idx:
-                            closest_idx = orig_idx
-                            break
-                    else:
-                        closest_idx = 0  # Default if mapping fails
+            sub_to_word[token_idx] = best_word_idx
 
-                    word_to_sub.append(closest_idx)
-                    sub_to_word[closest_idx] = word_idx
+        # Find first token for each word
+        for word_idx in range(num_words):
+            for token_idx, assigned_word in enumerate(sub_to_word):
+                if assigned_word == word_idx:
+                    word_to_sub[word_idx] = token_idx
+                    break
 
-            # Create labels: each subtoken either gets its primary word's label or -100
-            token_labels = [-100] * len(token_ids)  # Start with all -100
-            for sub_idx, word_idx in enumerate(sub_to_word):
-                if word_idx != -1:  # If this subtoken primarily represents a word
-                    # Check if this is the first subtoken for this word
-                    if word_to_sub[word_idx] == sub_idx:
-                        token_labels[sub_idx] = text_labels[word_idx]
+            # Fallback: find any overlapping token
+            if word_to_sub[word_idx] == -1:
+                word_start, word_end = word_spans[word_idx]
+                for token_idx, (token_start, token_end) in enumerate(token_char_spans):
+                    if max(token_start, word_start) < min(token_end, word_end):
+                        word_to_sub[word_idx] = token_idx
+                        break
 
-            # Store results
-            self.encoded_texts.append(token_ids)
-            self.encoded_labels.append(token_labels)
-            self.word_to_subtoken.append(word_to_sub)
-            self.subtoken_to_word.append(sub_to_word)
+                # Last resort
+                if word_to_sub[word_idx] == -1:
+                    word_to_sub[word_idx] = min(word_idx, num_tokens - 1)
+
+        return sub_to_word, word_to_sub
+
+    def _create_token_labels(self, token_ids: List[int], word_to_sub: List[int],
+                             text_labels: List[int], sub_to_word: List[int]) -> List[int]:
+        """Create token labels efficiently"""
+        token_labels = [-100] * len(token_ids)
+
+        # Handle space tokens
+        if self.space_token_id is not None:
+            for token_idx, token_id in enumerate(token_ids):
+                if token_id == self.space_token_id:
+                    # Don't change sub_to_word here to avoid breaking alignment
+                    pass
+
+        # Assign labels to first token of each word
+        for word_idx, first_token_idx in enumerate(word_to_sub):
+            if 0 <= first_token_idx < len(token_labels) and word_idx < len(text_labels):
+                token_labels[first_token_idx] = text_labels[word_idx]
+
+        return token_labels
 
     def __len__(self):
         return len(self.encoded_texts)
@@ -134,8 +204,6 @@ class NERDataset(Dataset):
             'word_to_subtoken': self.word_to_subtoken[idx],
             'subtoken_to_word': self.subtoken_to_word[idx],
         }
-
-
 # Simple NER model
 class NERModel(nn.Module):
     def __init__(self, vocab_size: int, embedding_dim: int = 128, hidden_dim: int = 256, num_classes: int = 2):
@@ -392,11 +460,9 @@ def train_ner_model(
         for batch in train_dataloader:
             input_ids = batch['input_ids'].to(device)
             labels = batch['labels'].to(device)
+
             # Zero the gradients
             optimizer.zero_grad()
-            """print(f"Tokenizer vocab size: {tokenizer.get_vocab_size()}")
-            print("Max input id:", input_ids.max().item())
-            print("Min input id:", input_ids.min().item())"""
 
             # Forward pass
             logits = model(input_ids)
