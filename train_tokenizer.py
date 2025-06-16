@@ -1,8 +1,7 @@
 import argparse
 import os
 from typing import List
-from tokenizer1 import Tokenizer1 #TODO: change this to your tokenizer
-
+from tokenizer1 import Tokenizer1
 
 def read_text_file(file_path: str) -> List[str]:
     """

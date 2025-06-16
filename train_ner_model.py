@@ -500,6 +500,7 @@ def train_ner_model(
             print(f"  Saved new best model with F1: {best_f1:.4f}")
 
     print(f"Training complete. Best F1: {best_f1:.4f}")
+    return best_f1
 
 
 if __name__ == "__main__":

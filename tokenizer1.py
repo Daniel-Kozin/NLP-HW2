@@ -60,6 +60,19 @@ class Tokenizer1(BaseTokenizer):
 		self.global_count = None
 		self.pair_to_sen = None
 
+		# ---- Manual addition of "I am" token ----
+		from_bytes = self.shift_encode("I am", N)
+		if from_bytes in self.token_to_id:
+			print(f'"I am" already in vocabulary')
+		else:
+			new_token_id = max(self.id_to_token) + 1
+			self.token_to_id[from_bytes] = new_token_id
+			self.id_to_token[new_token_id] = from_bytes
+			self.vocab_size += 1
+			print(f'Added manual token "I am" with ID {new_token_id}')
+
+		self.show_bi_gram()
+
 	def get_stats(self, ids):
 		counts = defaultdict(int)
 		for seq in ids:  # for each sequence of token IDs
@@ -158,3 +171,18 @@ class Tokenizer1(BaseTokenizer):
 			The number of tokens in the vocabulary
 		"""
 		return self.vocab_size
+
+	def show_bi_gram(self):
+		print("All the bi-grams in the vocabulary are:")
+		for idx, token in self.id_to_token.items():
+			# Ensure token is bytes
+			if isinstance(token, str):
+				token_bytes = token.encode('utf-8')
+			else:
+				token_bytes = token
+
+			# Unshift the token bytes by N
+			unshifted_bytes = bytes((b - N) % 256 for b in token_bytes)
+
+			if b' ' in unshifted_bytes:
+				print(f"{idx}: {unshifted_bytes}")
