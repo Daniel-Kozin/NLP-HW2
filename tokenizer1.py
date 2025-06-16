@@ -1,6 +1,7 @@
 from typing import List
 from collections import defaultdict
 from base_tokenizer import BaseTokenizer
+from heapq import heappush, heappop
 
 N = 4
 
@@ -141,6 +142,43 @@ class Tokenizer1(BaseTokenizer):
 		return shifted_bytes
 
 	def encode(self, text: str) -> List[int]:
+		tokens = list(map(int, self.shift_encode(text, N)))
+		if len(tokens) < 2:
+			return tokens
+
+		# Pair -> (negative score, position)
+		heap = []
+		for i in range(len(tokens) - 1):
+			pair = (tokens[i], tokens[i + 1])
+			if pair in self.scores:
+				score = self.scores[pair]
+				heappush(heap, (-score, i, pair))
+
+		while heap:
+			_, i, pair = heappop(heap)
+			if i >= len(tokens) - 1 or (tokens[i], tokens[i + 1]) != pair:
+				continue  # stale pair
+			if pair not in self.merges:
+				continue
+			new_token = self.merges[pair]
+
+			# Merge in place
+			tokens[i] = new_token
+			del tokens[i + 1]
+
+			# Update surrounding pairs in heap
+			if i > 0:
+				new_pair = (tokens[i - 1], tokens[i])
+				if new_pair in self.scores:
+					heappush(heap, (-self.scores[new_pair], i - 1, new_pair))
+			if i < len(tokens) - 1:
+				new_pair = (tokens[i], tokens[i + 1])
+				if new_pair in self.scores:
+					heappush(heap, (-self.scores[new_pair], i, new_pair))
+
+		return tokens
+
+	"""def encode(self, text: str) -> List[int]:
 		tokens = self.shift_encode(text, N)  # remember the 4 token in the base_tokenizer
 		tokens = list(map(int, tokens))
 		while True:
@@ -156,7 +194,7 @@ class Tokenizer1(BaseTokenizer):
 				break
 			new_token = self.merges[max_pair]
 			tokens = self.merge_for_encode(tokens, max_pair, new_token)
-		return tokens
+		return tokens"""
 
 	def decode(self, token_ids: List[int]) -> str:
 		tokens = b"".join(self.id_to_token[idx] for idx in token_ids)

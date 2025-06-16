@@ -107,7 +107,7 @@ def load_texts(file_path: str) -> List[str]:
         return [line.strip() for line in f.readlines()]
 
 
-def main(tokenizer_path: str, domain_train_file: str, domain_test_file: str):
+def test(tokenizer_path: str, domain_train_file: str, domain_test_file: str):
     """
     Main function to test a tokenizer
     
@@ -169,4 +169,4 @@ if __name__ == "__main__":
     # If test file is not specified, use the training file
     test_file = args.test_file if args.test_file else args.train_file
     
-    main(args.tokenizer_path, args.train_file, test_file) 
+    test(args.tokenizer_path, args.train_file, test_file)
