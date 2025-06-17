@@ -31,3 +31,10 @@ Vocab size: 1000 -> F1: 0.9616
 Vocab size: 500 -> F1: 0.9609
 Vocab size: 1250 -> F1: 0.9607
 Vocab size: 300 -> F1: 0.9603
+
+10000 - Best F1: 0.4731
+
+
+model 1 - 300
+model 2 -
+model 3 -

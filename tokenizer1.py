@@ -64,15 +64,14 @@ class Tokenizer1(BaseTokenizer):
 		# ---- Manual addition of "I am" token ----
 		from_bytes = self.shift_encode("I am", N)
 		if from_bytes in self.token_to_id:
-			print(f'"I am" already in vocabulary')
+			print(f'"but I" already in vocabulary')
 		else:
 			new_token_id = max(self.id_to_token) + 1
 			self.token_to_id[from_bytes] = new_token_id
 			self.id_to_token[new_token_id] = from_bytes
 			self.vocab_size += 1
-			print(f'Added manual token "I am" with ID {new_token_id}')
+			print(f'Added manual token "but I" with ID {new_token_id}')
 
-		self.show_bi_gram()
 
 	def get_stats(self, ids):
 		counts = defaultdict(int)
@@ -178,23 +177,6 @@ class Tokenizer1(BaseTokenizer):
 
 		return tokens
 
-	"""def encode(self, text: str) -> List[int]:
-		tokens = self.shift_encode(text, N)  # remember the 4 token in the base_tokenizer
-		tokens = list(map(int, tokens))
-		while True:
-			max_pair = None
-			max_score = 0
-			for pair in zip(tokens, tokens[1:]):
-				if pair not in self.pair_in_vocab:
-					continue
-				if self.scores[pair] > max_score:
-					max_score = self.scores[pair]
-					max_pair = pair
-			if max_pair is None:
-				break
-			new_token = self.merges[max_pair]
-			tokens = self.merge_for_encode(tokens, max_pair, new_token)
-		return tokens"""
 
 	def decode(self, token_ids: List[int]) -> str:
 		tokens = b"".join(self.id_to_token[idx] for idx in token_ids)
@@ -210,17 +192,21 @@ class Tokenizer1(BaseTokenizer):
 		"""
 		return self.vocab_size
 
+
 	def show_bi_gram(self):
-		print("All the bi-grams in the vocabulary are:")
-		for idx, token in self.id_to_token.items():
-			# Ensure token is bytes
-			if isinstance(token, str):
-				token_bytes = token.encode('utf-8')
-			else:
-				token_bytes = token
+		print("All the bi-grams in the vocabulary that contain a space and have words after it:")
+		for (a, b), idx in self.merges.items():
+			token = self.id_to_token[idx]
+			try:
+				decoded = token.decode('utf-8')
+			except UnicodeDecodeError:
+				continue
 
-			# Unshift the token bytes by N
-			unshifted_bytes = bytes((b - N) % 256 for b in token_bytes)
-
-			if b' ' in unshifted_bytes:
-				print(f"{idx}: {unshifted_bytes}")
+			if ' ' in decoded:
+				# Split on space
+				parts = decoded.split(' ')
+				# Check if there is at least one non-empty string after the first space
+				# Example: "Hello " -> parts = ['Hello', ''], exclude
+				#          "Hello m" -> parts = ['Hello', 'm'], include
+				if len(parts) > 1 and any(part.strip() for part in parts[1:]):
+					print(f"{idx}: '{decoded}' (from {a}, {b})")
