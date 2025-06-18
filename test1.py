@@ -38,12 +38,12 @@ def combine_files_sequential(file1_path, file2_path, output_path):
 
 
 if __name__ == "__main__":
-
+    """
     # combine_files_sequential('data/domain_1_train.txt', 'data/domain_2_train.txt', 'data/domain_test_train.txt')
 
     # train tokenizer 1
     print("------ Starting Training Tokenizer 1 --------")
-    train_model('data/domain_1_train.txt', 'tokenizers/model1', vocab_size=300)
+    #train_model('data/domain_1_train.txt', 'tokenizers/model1', vocab_size=300)
     print("------ Finished Training Tokenizer 1 --------")
 
     # train tokenizer 2
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         'data/ner_data/dev_2_binary.tagged', 'models/model2')
 
     print("------ Finished Training NER Tokenizer 2 --------")
-
+"""
 
     print("------ Testing Tokenizer 1 --------")
     test('tokenizers/model1/tokenizer.pkl',
@@ -77,9 +77,9 @@ if __name__ == "__main__":
          'data/domain_1_dev.txt')
 
     print("------ Testing Tokenizer 2 --------")
-    test('tokenizers/model1/tokenizer.pkl',
-         'data/domain_1_train.txt',
-         'data/domain_1_dev.txt')
+    test('tokenizers/model2/tokenizer.pkl',
+         'data/domain_2_train.txt',
+         'data/domain_2_dev.txt')
 
 
 
