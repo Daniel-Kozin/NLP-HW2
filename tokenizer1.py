@@ -1,7 +1,9 @@
+import heapq
 from typing import List
 from collections import defaultdict
 from base_tokenizer import BaseTokenizer
 from heapq import heappush, heappop
+
 
 N = 4
 
@@ -31,6 +33,7 @@ class Tokenizer1(BaseTokenizer):
 
         # holds all the pairs we've merged
         self.pair_in_vocab = set()
+
 
     def train(self, texts: List[str]) -> None:
         """
@@ -65,7 +68,7 @@ class Tokenizer1(BaseTokenizer):
             self.merges[pair] = idx
         self.global_count = None
         self.pair_to_sen = None
-
+        """
         # ---- Manual addition of "I am" token ----
         from_bytes = self.shift_encode("I am", N)
         if from_bytes in self.token_to_id:
@@ -76,7 +79,7 @@ class Tokenizer1(BaseTokenizer):
             self.id_to_token[new_token_id] = from_bytes
             self.vocab_size += 1
             print(f'Added manual token "but I" with ID {new_token_id}')
-
+        """
     def get_stats(self, ids):
         """
         Count frequency of all adjacent token pairs in the tokenized sequences.
@@ -156,44 +159,98 @@ class Tokenizer1(BaseTokenizer):
         return shifted_bytes
 
     def encode(self, text: str) -> List[int]:
-        """
-        Encode a string into a list of token IDs using BPE.
-        """
         tokens = list(map(int, self.shift_encode(text, N)))
         if len(tokens) < 2:
             return tokens
 
-        # Pair -> (negative score, position)
+        class Node:
+            def __init__(self, val):
+                self.val = val
+                self.prev = None
+                self.next = None
+
+        # Build double linked list
+        nodes = [Node(tok) for tok in tokens]
+        for i in range(len(nodes) - 1):
+            nodes[i].next = nodes[i + 1]
+            nodes[i + 1].prev = nodes[i]
+
+        head = nodes[0]
+
+        # Build heap and position map
         heap = []
-        for i in range(len(tokens) - 1):
-            pair = (tokens[i], tokens[i + 1])
-            if pair in self.scores:
-                score = self.scores[pair]
-                heappush(heap, (-score, i, pair))
+        pair_positions = defaultdict(list)
+
+        def add_pair(node):
+            if node and node.next:
+                pair = (node.val, node.next.val)
+                if pair in self.merges:
+                    score = self.scores[pair]
+                    heappush(heap, (-score, id(node), node))
+                    pair_positions[pair].append(node)
+
+        for node in nodes:
+            add_pair(node)
 
         while heap:
-            _, i, pair = heappop(heap)
-            if i >= len(tokens) - 1 or (tokens[i], tokens[i + 1]) != pair:
-                continue  # stale pair
+            _, _, node = heappop(heap)
+
+            if not node or not node.next:
+                continue
+
+            pair = (node.val, node.next.val)
             if pair not in self.merges:
                 continue
-            new_token = self.merges[pair]
 
-            # Merge in place
-            tokens[i] = new_token
+            # Merge node and node.next
+            new_token = self.merges[pair]
+            next_node = node.next
+            node.val = new_token
+            node.next = next_node.next
+            if next_node.next:
+                next_node.next.prev = node
+
+            # Add new pairs
+            add_pair(node.prev)
+            add_pair(node)
+
+        # Collect final result
+        result = []
+        node = head
+        while node:
+            result.append(node.val)
+            node = node.next
+
+        return result
+
+    """
+    def encode(self, text: str) -> List[int]:
+        tokens = list(map(int, self.shift_encode(text, N)))
+        if len(tokens) < 2:
+            return tokens
+
+        while True:
+            heap = []
+            for i in range(len(tokens) - 1):
+                pair = (tokens[i], tokens[i + 1])
+                if pair in self.merges:
+                    heapq.heappush(heap, (-self.scores[pair], i, pair))
+
+            if not heap:
+                break
+
+            _, i, pair = heapq.heappop(heap)
+
+            # Confirm pair is still valid
+            if i >= len(tokens) - 1 or (tokens[i], tokens[i + 1]) != pair:
+                continue
+
+            # Merge the pair
+            tokens[i] = self.merges[pair]
             del tokens[i + 1]
 
-            # Update surrounding pairs in heap
-            if i > 0:
-                new_pair = (tokens[i - 1], tokens[i])
-                if new_pair in self.scores:
-                    heappush(heap, (-self.scores[new_pair], i - 1, new_pair))
-            if i < len(tokens) - 1:
-                new_pair = (tokens[i], tokens[i + 1])
-                if new_pair in self.scores:
-                    heappush(heap, (-self.scores[new_pair], i, new_pair))
-
         return tokens
+    """
 
     def decode(self, token_ids: List[int]) -> str:
         """
@@ -232,3 +289,24 @@ class Tokenizer1(BaseTokenizer):
                 #          "Hello m" -> parts = ['Hello', 'm'], include
                 if len(parts) > 1 and any(part.strip() for part in parts[1:]):
                     print(f"{idx}: '{decoded}' (from {a}, {b})")
+
+    def show_bi_gram1(self):
+        """
+        Print bi-gram tokens from the vocabulary that contain a space followed by a word.
+        """
+        print("All the bi-grams in the vocabulary that contain a space and have words after it:")
+        for (a, b), idx in self.merges.items():
+            token = self.id_to_token[idx]
+            try:
+                decoded = token.decode('utf-8')
+            except UnicodeDecodeError:
+                continue
+
+            if ' ' in decoded:
+                # Split on space
+                parts = decoded.split(' ')
+                # Check if there is at least one non-empty string after the first space
+                # Example: "Hello " -> parts = ['Hello', ''], exclude
+                #          "Hello m" -> parts = ['Hello', 'm'], include
+                if len(parts) > 1 and any(part.strip() for part in parts[1:]):
+                    print(f'{decoded}')

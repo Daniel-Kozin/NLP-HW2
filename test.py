@@ -154,11 +154,22 @@ def count_phrase_in_file(filepath: str, phrase: str) -> int:
 if __name__ == "__main__":
     import pickle
 
-    with open("tokenizers/model2/tokenizer.pkl", "rb") as f:
+    with open("tokenizers/test/tokenizer.pkl", "rb") as f:
         tokenizer = pickle.load(f)
 
-    tokenizer.show_bi_gram2()
+    #tokenizer.show_bi_gram()
 
     filename = "data/domain_test_train.txt"
-    target_word = "Donald Trump"  # will only count exact "Hello", not "hello" or "Hello!"
-    print(count_phrase_in_file(filename, target_word))
+    target_words = ["of the", 'in the', 'for the', 'going to', "for the", "on the", "to the", "have to", "have a", "at the"]
+
+    print("The count of each phrase in the training set (sorted by count):")
+
+    # Count and store in list
+    counts = [(word, count_phrase_in_file(filename, word)) for word in target_words]
+
+    # Sort descending by count
+    counts.sort(key=lambda x: x[1], reverse=True)
+
+    # Print
+    for word, count in counts:
+        print(f'"{word}" => {count}')

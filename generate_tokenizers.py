@@ -20,17 +20,17 @@ if __name__ == "__main__":
 
     # train tokenizer 1
     print("------ Starting Training Tokenizer 1 --------")
-    train_model('data/domain_1_train.txt', 'tokenizers/model1', vocab_size=300)
+    train_model('data/domain_1_train.txt', 'tokenizers/model1', vocab_size=750)
     print("------ Finished Training Tokenizer 1 --------")
 
     # train tokenizer 2
     print("------ Starting Training Tokenizer 2 --------")
-    train_model('data/domain_2_train.txt', 'tokenizers/model2', vocab_size=1500)
+    train_model('data/domain_2_train.txt', 'tokenizers/model2', vocab_size=1000)
     print("------ Finished Training Tokenizer 2 --------")
 
     # train tokenizer 3
     print("------ Starting Training Tokenizer Test --------")
-    train_model('data/domain_test_train.txt', 'tokenizers/test', vocab_size=750)
+    train_model('data/domain_test_train.txt', 'tokenizers/test', vocab_size=850)
     print("------ Finished Training Tokenizer Test --------")
 
 

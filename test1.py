@@ -57,29 +57,29 @@ if __name__ == "__main__":
     print("------ Finished Training Tokenizer Test --------")
 
     print("------ Starting Training NER Tokenizer 1 --------")
-
-    f1_tokenizer1 = train_ner(
-        'tokenizers/model1/tokenizer.pkl', 'data/ner_data/train_1_binary.tagged',
-        'data/ner_data/dev_1_binary.tagged', 'models/model1')
-    print("------ Finished Training NER Tokenizer 1 --------")
-
-    print("------ Starting Training NER Tokenizer 2 --------")
-    f1_tokenizer2 = train_ner(
-        'tokenizers/model1/tokenizer.pkl', 'data/ner_data/train_2_binary.tagged',
-        'data/ner_data/dev_2_binary.tagged', 'models/model2')
-
-    print("------ Finished Training NER Tokenizer 2 --------")
 """
+    for i in range(3):
+        f1_tokenizer1 = train_ner(
+            'tokenizers/model1/tokenizer.pkl', 'data/ner_data/train_1_binary.tagged',
+            'data/ner_data/dev_1_binary.tagged', 'models/model1')
+        print("------ Finished Training NER Tokenizer 1 --------")
 
-    print("------ Testing Tokenizer 1 --------")
-    test('tokenizers/model1/tokenizer.pkl',
-         'data/domain_1_train.txt',
-         'data/domain_1_dev.txt')
+        print("------ Starting Training NER Tokenizer 2 --------")
+        f1_tokenizer2 = train_ner(
+            'tokenizers/model1/tokenizer.pkl', 'data/ner_data/train_2_binary.tagged',
+            'data/ner_data/dev_2_binary.tagged', 'models/model2')
 
-    print("------ Testing Tokenizer 2 --------")
-    test('tokenizers/model2/tokenizer.pkl',
-         'data/domain_2_train.txt',
-         'data/domain_2_dev.txt')
+        print("------ Finished Training NER Tokenizer 2 --------")
+
+print("------ Testing Tokenizer 1 --------")
+test('tokenizers/model1/tokenizer.pkl',
+     'data/domain_1_train.txt',
+     'data/domain_1_dev.txt')
+
+print("------ Testing Tokenizer 2 --------")
+test('tokenizers/model2/tokenizer.pkl',
+     'data/domain_2_train.txt',
+     'data/domain_2_dev.txt')
 
 
 
